@@ -9,14 +9,19 @@ Case format in test/dialect/*.txt:
     === name of the case
     lenient: ok
     strict: reject
+    matlab: ok
     ---
     <source>
+
+A case names only the variants it is about.
 """
 
 import os, subprocess, sys
 
 ROOT = os.path.dirname (os.path.dirname (os.path.abspath (__file__)))
-VARIANTS = {'lenient': ROOT, 'strict': os.path.join (ROOT, 'strict')}
+VARIANTS = {'lenient': ROOT,
+            'strict': os.path.join (ROOT, 'strict'),
+            'matlab': os.path.join (ROOT, 'matlab')}
 
 
 def parse_cases (path):

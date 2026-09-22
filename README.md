@@ -32,33 +32,52 @@ and the tree-sitter runtime are vendored into that package at release, so a
 user needs a C compiler and nothing else.  Nothing here depends on Octave, and
 the grammar is usable by any editor that speaks tree-sitter.
 
-## Two parsers, one definition
+## Three parsers, one definition
 
 `common/define-grammar.js` is the grammar, taking the dialect as an argument.
-Two parsers are generated from it, and **only the first is an editor
+Three parsers are generated from it, and **only the first is an editor
 grammar**:
 
 | Variant | Where | What it accepts |
 |---|---|---|
 | **lenient** | the repository root | Octave, and the MATLAB spelling of everything that has two.  This is what an editor maps `.m` to, what carries the queries, and what `devtools.lsp` vendors. |
-| **strict** | `strict/` | only what Octave owns, so a file that passes is one MATLAB cannot read.  A checker, not an editor grammar: no queries, never registered with an editor. |
+| **strict Octave** | `strict/` | what Octave accepts and MATLAB rejects.  A checker: no queries, never registered with an editor. |
+| **strict MATLAB** | `matlab/` | what MATLAB accepts and Octave rejects.  A checker too, for asking whether a file is safe to hand to MATLAB. |
 
-**The rule is exact: strict accepts what Octave accepts and MATLAB rejects.**
-Lenient is the union of the two languages, strict Octave the difference.  So
-where a construct has a choice of spelling, strict requires Octave's own, and
-where both languages accept a form it is not in strict at all.
+**The rule is exact.**  Lenient is the union of the two languages; each strict
+variant is a difference.  Where a construct has a choice of spelling, each
+requires its own language's; where both languages accept a form, neither
+strict variant takes it, which is why a function with no terminator is
+excluded from both.
 
-Strict therefore rejects `%` comments, `%{ %}` blocks, `~` as negation, `~=`,
-a bare `end` closing any block, a function with no terminator, since a
-function may be closed by `endfunction`, by `end` or by nothing and only the
-first is Octave's own, and MATLAB's `arguments` block, which Octave does not
-run at all.
+|  | lenient | strict Octave | strict MATLAB |
+|---|---|---|---|
+| `#` comment, `#{ #}` | ok | ok | reject |
+| `%` comment, `%{ %}` | ok | reject | ok |
+| `!`, `!=` | ok | ok | reject |
+| `~` as negation, `~=` | ok | reject | ok |
+| `endif`, `endfunction`, the rest | ok | ok | reject |
+| a bare `end` | ok | reject | ok |
+| `do ... until`, `unwind_protect` | ok | ok | reject |
+| `+=`, `++` | ok | ok | reject |
+| `f (x)(2)`, chaining an index onto a call | ok | ok | reject |
+| `for [v, k] = s`, walking a struct | ok | ok | reject |
+| `(d = find (...))`, assigning in an expression | ok | ok | reject |
+| `arguments` validation block | ok | reject | ok |
+| `x = 1; y = f (x, 2);` | ok | ok | ok |
 
-Two carve-outs, both because the spelling is the only one there is.  `~` stays
-legal as an ignored output, `[~, i] = max (v)` having no alternative in either
-language.  And `%!` stays legal, since `octave/scripts/testfun/test.m` tests
-`strncmp (ln, "%!", 2)` and accepts no other BIST marker, so rejecting it
-would fail every package file that has tests.
+Two carve-outs in strict Octave, each because the spelling is the only one
+there is.  `~` stays legal as an ignored output, `[~, i] = max (v)` having no
+alternative in either language.  And `%!` stays legal, since
+`octave/scripts/testfun/test.m` tests `strncmp (ln, "%!", 2)` and accepts no
+other BIST marker, so rejecting it would fail every package file that has
+tests.
+
+**What each checker is measured against.**  Strict MATLAB rejects every one
+of the 882 Octave package files here, as it must, and accepts all 21 of the
+probe files written to run on the MATLAB VM.  It rejects 5 of the 47 probes
+under `dev-octave/`, correctly: those probe Octave itself and are written in
+Octave.
 
 Run over the packages here, strict flags **20 files**: 17 in `statistics` and
 3 in `csg-toolkit`, between them 34 `%` comments and three bare `end`
@@ -70,8 +89,9 @@ and `devtools` are clean.
 ```
 tree-sitter generate --no-bindings   # grammar.js -> src/parser.c
 (cd strict && tree-sitter generate --no-bindings)
+(cd matlab && tree-sitter generate --no-bindings)
 tree-sitter test                     # 56 corpus tests, on the lenient parser
-tools/dialect-test.py                # 58 assertions the variants must differ on
+tools/dialect-test.py                # 77 assertions the variants must differ on
 tree-sitter parse FILE               # print the tree for one file
 make                                 # libtree-sitter-octave.so, .a and the .pc
 ```
@@ -84,7 +104,8 @@ variant.  Without it the two variants drift and nobody notices.
 The scanner is shared: `common/scanner.h` holds it, and each variant's
 `src/scanner.c` defines `TS_LANG` before including it, since tree-sitter
 derives the exported names from the grammar's name.  `TS_STRICT` also switches
-the token enum, because strict declares one external fewer.
+the token enum, because strict Octave declares one external fewer, having no
+argument validation block.
 
 **`--no-bindings` is not optional.**  The bare command writes Node, Go,
 Python, Rust and Swift bindings, which do nothing unless published to four

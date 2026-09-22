@@ -3284,6 +3284,31 @@
         }
       }
     },
+    "_chainable": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "identifier"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "field_expression"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "cell_index_expression"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "parenthesized_expression"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "superclass_reference"
+        }
+      ]
+    },
     "cell_index_expression": {
       "type": "PREC",
       "value": 12,

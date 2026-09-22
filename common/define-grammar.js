@@ -47,10 +47,15 @@ const KEYWORDS = [
 
 module.exports = function defineGrammar (dialect) {
 
+/* `lenient` is the union of the two languages and is the editor grammar.
+   `strict` is Octave minus MATLAB, `matlab` is MATLAB minus Octave: where a
+   construct has a choice of spelling each requires its own language's, and
+   where both languages accept a form neither strict variant takes it. */
 const strict = (dialect === 'strict');
+const matlab = (dialect === 'matlab');
 
 return grammar ({
-  name: strict ? 'octave_strict' : 'octave',
+  name: strict ? 'octave_strict' : matlab ? 'matlab_strict' : 'octave',
 
   word: $ => $.identifier,
 
@@ -80,16 +85,23 @@ return grammar ({
      the parser cannot know which until it has read past the bracket. */
   conflicts: $ => [
     [$._assignable, $._non_range_expression],
+    ...(matlab ? [[$.elseif_clause, $._chainable]] : []),
+    ...(matlab ? [[$._assignable, $._chainable]] : []),
+    ...(matlab ? [[$.while_statement, $._chainable]] : []),
+    ...(matlab ? [[$.if_statement, $._chainable]] : []),
+    ...(matlab ? [[$._non_range_expression, $._chainable]] : []),
+    ...(matlab ? [[$._assignable, $._non_range_expression, $._chainable]] : []),
     /* `a:b:c` is one range with a step and `a:b` is one without: which it is
        shows only after the second colon. */
     [$._expression, $.range_expression],
     /* `[val, key] = s` is a loop head after `for` and an assignment
-       anywhere else, and the two read alike until the keyword is seen. */
-    [$.assignment, $._loop_head],
+       anywhere else, and the two read alike until the keyword is seen.
+       MATLAB has no such loop, so the ambiguity does not arise there. */
+    ...(matlab ? [] : [[$.assignment, $._loop_head]]),
     /* Whether a statement after a separator continues the run or is the last
        one shows only past its end.  Strict does not need it: requiring the
        function terminator removes the state where it arose. */
-    ...(strict ? [] : [[$._block]]),
+    ...(strict || matlab ? [] : [[$._block]]),
     /* A definition is both a statement and a top-level item, and which it is
        shows only from where it sits. */
     [$.if_statement, $._non_range_expression],
@@ -129,13 +141,16 @@ return grammar ({
     comment: _ => token (choice (
       ...(strict
           ? [seq ('#', /[^\r\n]*/), seq ('%!', /[^\r\n]*/)]
+          : matlab
+          ? [seq ('%', /[^\r\n]*/)]
           : [seq (choice ('%', '#'), /[^\r\n]*/)]),
-      seq (strict ? '#{' : choice ('%{', '#{'), /[ \t]*\r?\n/,
+      seq (strict ? '#{' : matlab ? '%{' : choice ('%{', '#{'),
+           /[ \t]*\r?\n/,
            repeat (choice (/[^%#\r\n][^\r\n]*\r?\n/,
                            /[ \t]*\r?\n/,
                            /[%#][^}\r\n][^\r\n]*\r?\n/,
                            /[%#]\r?\n/)),
-           /[ \t]*/, strict ? '#}' : choice ('%}', '#}')),
+           /[ \t]*/, strict ? '#}' : matlab ? '%}' : choice ('%}', '#}')),
     )),
 
     /* `...` takes a comment after it; a lone backslash continues a line only
@@ -177,10 +192,10 @@ return grammar ({
       $.if_statement,
       $.for_statement,
       $.while_statement,
-      $.do_statement,
+      ...(matlab ? [] : [$.do_statement]),
       $.switch_statement,
       $.try_statement,
-      $.unwind_protect_statement,
+      ...(matlab ? [] : [$.unwind_protect_statement]),
       $.break_statement,
       $.continue_statement,
       $.return_statement,
@@ -202,11 +217,11 @@ return grammar ({
                        field ('right', choice ($._expression, $.assignment)))),
       seq (field ('left', $.multi_assignment_target), '=',
            field ('right', $._expression)),
-      seq (field ('left', $._assignable),
+      ...(matlab ? [] : [seq (field ('left', $._assignable),
            field ('operator',
                   choice ('+=', '-=', '*=', '/=', '^=', '&=', '|=',
                           '.*=', './=', '.^=')),
-           field ('right', $._expression)),
+           field ('right', $._expression))]),
     ),
 
     multi_assignment_target: $ => seq (
@@ -274,7 +289,9 @@ return grammar ({
     ),
 
     _loop_head: $ => seq (
-      field ('variable', choice ($._assignable, $.multi_assignment_target)),
+      field ('variable', matlab ? $._assignable
+                                : choice ($._assignable,
+                                          $.multi_assignment_target)),
       '=', field ('range', $._expression),
     ),
 
@@ -325,14 +342,21 @@ return grammar ({
        `seq`: a hidden rule whose whole body is one terminal is folded away
        by tree-sitter 0.22.6 and stops being required, so the terminator
        silently becomes optional.  Measured, not guessed. */
-    _end_if: _ => strict ? seq ('endif') : choice ('endif', 'end'),
+    _end_if: _ => strict ? seq ('endif') : matlab ? seq ('end')
+                                          : choice ('endif', 'end'),
     _end_for: _ => strict ? choice ('endfor', 'endparfor')
+                         : matlab ? seq ('end')
                          : choice ('endfor', 'endparfor', 'end'),
-    _end_while: _ => strict ? seq ('endwhile') : choice ('endwhile', 'end'),
-    _end_switch: _ => strict ? seq ('endswitch') : choice ('endswitch', 'end'),
-    _end_try: _ => strict ? seq ('end_try_catch') : choice ('end_try_catch', 'end'),
-    _end_unwind_protect: _ => strict ? seq ('end_unwind_protect') : choice ('end_unwind_protect', 'end'),
-    _end_function: _ => strict ? seq ('endfunction') : choice ('endfunction', 'end'),
+    _end_while: _ => strict ? seq ('endwhile') : matlab ? seq ('end')
+                                          : choice ('endwhile', 'end'),
+    _end_switch: _ => strict ? seq ('endswitch') : matlab ? seq ('end')
+                                          : choice ('endswitch', 'end'),
+    _end_try: _ => strict ? seq ('end_try_catch') : matlab ? seq ('end')
+                                          : choice ('end_try_catch', 'end'),
+    _end_unwind_protect: _ => strict ? seq ('end_unwind_protect') : matlab ? seq ('end')
+                                          : choice ('end_unwind_protect', 'end'),
+    _end_function: _ => strict ? seq ('endfunction') : matlab ? seq ('end')
+                                          : choice ('endfunction', 'end'),
 
     /* A block opens on a terminator, so `if a (b)` is a call in the condition
        and never a condition followed by a statement. */
@@ -438,11 +462,16 @@ return grammar ({
       optional (seq ('(', optional ($._argument_list), ')')),
     ),
 
-    _end_classdef: _ => strict ? seq ('endclassdef') : choice ('endclassdef', 'end'),
-    _end_properties: _ => strict ? seq ('endproperties') : choice ('endproperties', 'end'),
-    _end_methods: _ => strict ? seq ('endmethods') : choice ('endmethods', 'end'),
-    _end_events: _ => strict ? seq ('endevents') : choice ('endevents', 'end'),
-    _end_enumeration: _ => strict ? seq ('endenumeration') : choice ('endenumeration', 'end'),
+    _end_classdef: _ => strict ? seq ('endclassdef') : matlab ? seq ('end')
+                                          : choice ('endclassdef', 'end'),
+    _end_properties: _ => strict ? seq ('endproperties') : matlab ? seq ('end')
+                                          : choice ('endproperties', 'end'),
+    _end_methods: _ => strict ? seq ('endmethods') : matlab ? seq ('end')
+                                          : choice ('endmethods', 'end'),
+    _end_events: _ => strict ? seq ('endevents') : matlab ? seq ('end')
+                                          : choice ('endevents', 'end'),
+    _end_enumeration: _ => strict ? seq ('endenumeration') : matlab ? seq ('end')
+                                          : choice ('endenumeration', 'end'),
 
     /* ------------------------------------------------ argument validation */
 
@@ -496,7 +525,7 @@ return grammar ({
          but strict is not bound by what Octave accepts: where a construct has
          a choice of spelling it requires Octave's own, and a function body
          may be closed by `endfunction`, by `end`, or by nothing at all. */
-      ...(strict ? [$._end_function] : [optional ($._end_function)]),
+      ...(strict || matlab ? [$._end_function] : [optional ($._end_function)]),
     )),
 
     /* A function name is identifiers and dots, never a general expression:
@@ -558,16 +587,19 @@ return grammar ({
     ...(strict ? [] : [$._arguments_keyword]),
     ),
 
+    /* An assignment is an expression only in Octave, and only where
+       parentheses make it one. */
     parenthesized_expression: $ => seq (
-      '(', choice ($._expression, $.assignment), ')',
+      '(', matlab ? $._expression : choice ($._expression, $.assignment), ')',
     ),
 
     colon: _ => ':',
 
     unary_expression: $ => prec (PREC.unary, seq (
       field ('operator', choice (...(strict ? ['-', '+', '!']
+                                          : matlab ? ['-', '+', '~']
                                           : ['-', '+', '!', '~']),
-                                 '++', '--')),
+                                 ...(matlab ? [] : ['++', '--']))),
       field ('argument', $._expression),
     )),
 
@@ -575,14 +607,16 @@ return grammar ({
        by the whitespace before it and the bracket it sits in. */
     postfix_expression: $ => prec (PREC.postfix, seq (
       field ('argument', $._expression),
-      field ('operator', choice ($._transpose, ".'", '++', '--')),
+      field ('operator', choice ($._transpose, ".'",
+                                 ...(matlab ? [] : ['++', '--']))),
     )),
 
     binary_expression: $ => choice (
       ...[
         ['||', PREC.or], ['|', PREC.bitor],
         ['&&', PREC.and], ['&', PREC.bitand],
-        ['==', PREC.compare], ['!=', PREC.compare],
+        ['==', PREC.compare],
+        ...(matlab ? [] : [['!=', PREC.compare]]),
         ...(strict ? [] : [['~=', PREC.compare]]),
         ['<', PREC.compare], ['<=', PREC.compare],
         ['>', PREC.compare], ['>=', PREC.compare],
@@ -619,9 +653,16 @@ return grammar ({
     )),
 
     index_expression: $ => prec.dynamic (1, prec (PREC.call, seq (
-      field ('value', $._expression), '(', optional ($._argument_list),
-      ')',
+      field ('value', matlab ? $._chainable : $._expression),
+      '(', optional ($._argument_list), ')',
     ))),
+
+    /* MATLAB does not chain an index onto a call's result, so `f (x)(2)` is
+       Octave's alone. */
+    _chainable: $ => choice (
+      $.identifier, $.field_expression, $.cell_index_expression,
+      $.parenthesized_expression, $.superclass_reference,
+    ),
 
     cell_index_expression: $ => prec (PREC.call, seq (
       field ('value', $._expression), '{', optional ($._argument_list), '}',
@@ -643,7 +684,8 @@ return grammar ({
 
     _argument_list: $ => seq ($._argument, repeat (seq (',', $._argument))),
 
-    _argument: $ => choice ($._expression, $.ignored_output, $.assignment),
+    _argument: $ => choice ($._expression, $.ignored_output,
+                            ...(matlab ? [] : [$.assignment])),
 
     /* `this@Base (x)` and `subsref@ns.Class (s)` reach a superclass method,
        which MATLAB spells the same way. */

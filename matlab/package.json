@@ -1,19 +1,19 @@
 {
-  "name": "tree-sitter-octave-strict",
+  "name": "tree-sitter-matlab-strict",
   "version": "0.0.1",
-  "description": "Strict Octave dialect checker, generated from the same definition as tree-sitter-octave",
+  "description": "Strict MATLAB dialect checker, generated from the same definition as tree-sitter-octave",
   "repository": "github:pr0m1th3as/tree-sitter-octave",
   "license": "GPL-3.0-or-later",
   "keywords": [
     "incremental",
     "parsing",
     "tree-sitter",
-    "octave_strict"
+    "matlab_strict"
   ],
   "tree-sitter": [
     {
-      "scope": "source.octave_strict",
-      "injection-regex": "^octave_strict$"
+      "scope": "source.matlab_strict",
+      "injection-regex": "^matlab_strict$"
     }
   ],
   "author": "Andreas Bertsatos <abertsatos@biol.uoa.gr>"

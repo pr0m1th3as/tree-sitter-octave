@@ -1,0 +1,106 @@
+=== A hash comment is Octave's alone
+matlab: reject
+---
+# a comment
+x = 1;
+
+=== A percent comment is MATLAB's
+matlab: ok
+---
+% a comment
+x = 1;
+
+=== Negation is a tilde
+matlab: ok
+---
+x = ~a;
+
+=== A bang is Octave's
+matlab: reject
+---
+x = !a;
+
+=== Inequality is a tilde
+matlab: ok
+---
+x = (a ~= b);
+
+=== A bang inequality is Octave's
+matlab: reject
+---
+x = (a != b);
+
+=== A bare end closes a block
+matlab: ok
+---
+if (a)
+  x = 1;
+end
+
+=== A typed terminator is Octave's
+matlab: reject
+---
+if (a)
+  x = 1;
+endif
+
+=== do until is Octave's
+matlab: reject
+---
+do
+  x = 1;
+until (a)
+
+=== unwind_protect is Octave's
+matlab: reject
+---
+unwind_protect
+  x = 1;
+unwind_protect_cleanup
+  y = 2;
+end_unwind_protect
+
+=== Compound assignment is Octave's
+matlab: reject
+---
+a += 1;
+
+=== Increment is Octave's
+matlab: reject
+---
+i++;
+
+=== Chaining an index onto a call is Octave's
+matlab: reject
+---
+y = f (x)(2);
+
+=== Walking a struct with for is Octave's
+matlab: reject
+---
+for [v, k] = s
+  x = v;
+end
+
+=== An assignment in parentheses is Octave's
+matlab: reject
+---
+(d = find (s ~= 1, 1)) || (d = 1);
+
+=== An argument validation block is MATLAB's
+matlab: ok
+---
+function y = f (x)
+  arguments
+    x double
+  end
+  y = x;
+end
+
+=== Shared syntax is accepted by all three
+lenient: ok
+strict: ok
+matlab: ok
+---
+x = 1;
+y = f (x, 2);
