@@ -1,0 +1,55 @@
+==========================
+elseif continues the chain
+==========================
+
+if (a)
+  x = 1;
+elseif (b)
+  x = 2;
+endif
+---
+
+(source_file
+  (if_statement
+    condition: (parenthesized_expression
+      (identifier))
+    (assignment
+      left: (identifier)
+      right: (number))
+    (elseif_clause
+      condition: (parenthesized_expression
+        (identifier))
+      (assignment
+        left: (identifier)
+        right: (number)))))
+
+=========================
+else if opens a nested if
+=========================
+
+if (a)
+  x = 1;
+else if (b)
+  x = 2;
+endif
+  y = 3;
+endif
+---
+
+(source_file
+  (if_statement
+    condition: (parenthesized_expression
+      (identifier))
+    (assignment
+      left: (identifier)
+      right: (number))
+    (else_clause
+      (if_statement
+        condition: (parenthesized_expression
+          (identifier))
+        (assignment
+          left: (identifier)
+          right: (number)))
+      (assignment
+        left: (identifier)
+        right: (number)))))

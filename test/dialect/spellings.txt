@@ -1,0 +1,68 @@
+=== A hash comment is Octave's own
+lenient: ok
+strict: ok
+---
+# a comment
+x = 1;
+
+=== A percent comment is MATLAB's spelling
+lenient: ok
+strict: reject
+---
+% a comment
+x = 1;
+
+=== A BIST marker is a percent comment Octave requires
+lenient: ok
+strict: ok
+---
+%!test
+%! assert (1, 1);
+
+=== A hash block comment
+lenient: ok
+strict: ok
+---
+#{
+hidden
+#}
+x = 1;
+
+=== A percent block comment
+lenient: ok
+strict: reject
+---
+%{
+hidden
+%}
+x = 1;
+
+=== Negation spelled with a bang
+lenient: ok
+strict: ok
+---
+x = !a;
+
+=== Negation spelled with a tilde
+lenient: ok
+strict: reject
+---
+x = ~a;
+
+=== A tilde for an ignored output is the only spelling there is
+lenient: ok
+strict: ok
+---
+[~, i] = max (v);
+
+=== Inequality spelled with a bang
+lenient: ok
+strict: ok
+---
+x = (a != b);
+
+=== Inequality spelled with a tilde
+lenient: ok
+strict: reject
+---
+x = (a ~= b);

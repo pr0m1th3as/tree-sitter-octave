@@ -1,0 +1,116 @@
+==================
+A validation block
+==================
+
+function y = f (x)
+    arguments
+        x (1,1) double {mustBePositive}
+    end
+    y = x;
+end
+---
+
+(source_file
+  (function_definition
+    output: (identifier)
+    name: (identifier)
+    parameters: (parameter_list
+      (identifier))
+    (arguments_block
+      (argument_declaration
+        name: (identifier)
+        size: (argument_size
+          (number)
+          (number))
+        class: (identifier)
+        validators: (validator_list
+          (identifier))))
+    (assignment
+      left: (identifier)
+      right: (identifier))))
+
+==================================
+Name-value arguments with defaults
+==================================
+
+function f (opts)
+    arguments
+        opts.Method (1,1) string = "mean"
+        opts.Verbose (1,1) logical = false
+    end
+end
+---
+
+(source_file
+  (function_definition
+    name: (identifier)
+    parameters: (parameter_list
+      (identifier))
+    (arguments_block
+      (argument_declaration
+        name: (argument_field
+          (identifier)
+          (identifier))
+        size: (argument_size
+          (number)
+          (number))
+        class: (identifier)
+        default: (string
+          (double_quoted_string)))
+      (argument_declaration
+        name: (argument_field
+          (identifier)
+          (identifier))
+        size: (argument_size
+          (number)
+          (number))
+        class: (identifier)
+        default: (identifier)))))
+
+=================
+A repeating block
+=================
+
+function f (varargin)
+    arguments (Repeating)
+        varargin cell
+    end
+end
+---
+
+(source_file
+  (function_definition
+    name: (identifier)
+    parameters: (parameter_list
+      (identifier))
+    (arguments_block
+      attributes: (attribute_list
+        (attribute
+          name: (identifier)))
+      (argument_declaration
+        name: (identifier)
+        class: (identifier)))))
+
+=========================
+arguments is still a name
+=========================
+
+arguments = 5;
+x = arguments + 1;
+y = arguments{3};
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (number))
+  (assignment
+    left: (identifier)
+    right: (binary_expression
+      left: (identifier)
+      right: (number)))
+  (assignment
+    left: (identifier)
+    right: (cell_index_expression
+      value: (identifier)
+      (number))))

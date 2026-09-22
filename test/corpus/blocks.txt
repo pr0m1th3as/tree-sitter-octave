@@ -1,0 +1,292 @@
+===================
+If, Octave spelling
+===================
+
+if (a)
+  x = 1;
+elseif (b)
+  x = 2;
+else
+  x = 3;
+endif
+---
+
+(source_file
+  (if_statement
+    condition: (parenthesized_expression
+      (identifier))
+    (assignment
+      left: (identifier)
+      right: (number))
+    (elseif_clause
+      condition: (parenthesized_expression
+        (identifier))
+      (assignment
+        left: (identifier)
+        right: (number)))
+    (else_clause
+      (assignment
+        left: (identifier)
+        right: (number)))))
+
+===================
+If, MATLAB spelling
+===================
+
+if a
+  x = 1;
+elseif b
+  x = 2;
+else
+  x = 3;
+end
+---
+
+(source_file
+  (if_statement
+    condition: (identifier)
+    (assignment
+      left: (identifier)
+      right: (number))
+    (elseif_clause
+      condition: (identifier)
+      (assignment
+        left: (identifier)
+        right: (number)))
+    (else_clause
+      (assignment
+        left: (identifier)
+        right: (number)))))
+
+=========================
+A body on the header line
+=========================
+
+if (isscalar (x)) x = repmat (x, m, 1); endif
+---
+
+(source_file
+  (if_statement
+    condition: (parenthesized_expression
+      (index_expression
+        value: (identifier)
+        (identifier)))
+    (assignment
+      left: (identifier)
+      right: (index_expression
+        value: (identifier)
+        (identifier)
+        (identifier)
+        (number)))))
+
+================================
+A body on the line, through else
+================================
+
+if (a) x = 1; elseif (b) x = 2; else x = 3; endif
+---
+
+(source_file
+  (if_statement
+    condition: (parenthesized_expression
+      (identifier))
+    (assignment
+      left: (identifier)
+      right: (number))
+    (elseif_clause
+      condition: (parenthesized_expression
+        (identifier))
+      (assignment
+        left: (identifier)
+        right: (number)))
+    (else_clause
+      (assignment
+        left: (identifier)
+        right: (number)))))
+
+=======================================
+A call in the condition is still a call
+=======================================
+
+if a (b)
+  c = 1;
+endif
+---
+
+(source_file
+  (if_statement
+    condition: (index_expression
+      value: (identifier)
+      (identifier))
+    (assignment
+      left: (identifier)
+      right: (number))))
+
+================
+For, both enders
+================
+
+for i = 1:3
+  x = i;
+endfor
+for j = 1:3
+  y = j;
+end
+---
+
+(source_file
+  (for_statement
+    variable: (identifier)
+    range: (range_expression
+      start: (number)
+      stop: (number))
+    (assignment
+      left: (identifier)
+      right: (identifier)))
+  (for_statement
+    variable: (identifier)
+    range: (range_expression
+      start: (number)
+      stop: (number))
+    (assignment
+      left: (identifier)
+      right: (identifier))))
+
+=================
+For over a struct
+=================
+
+for [val, key] = s
+  x = val;
+endfor
+---
+
+(source_file
+  (for_statement
+    variable: (multi_assignment_target
+      (identifier)
+      (identifier))
+    range: (identifier)
+    (assignment
+      left: (identifier)
+      right: (identifier))))
+
+==================
+While and do until
+==================
+
+while (a)
+  x = 1;
+endwhile
+do
+  y = 2;
+until (b)
+---
+
+(source_file
+  (while_statement
+    condition: (parenthesized_expression
+      (identifier))
+    (assignment
+      left: (identifier)
+      right: (number)))
+  (do_statement
+    (assignment
+      left: (identifier)
+      right: (number))
+    condition: (parenthesized_expression
+      (identifier))))
+
+======
+Switch
+======
+
+switch (x)
+  case 1
+    y = 1;
+  otherwise
+    y = 2;
+endswitch
+---
+
+(source_file
+  (switch_statement
+    value: (parenthesized_expression
+      (identifier))
+    (case_clause
+      value: (number)
+      (assignment
+        left: (identifier)
+        right: (number)))
+    (otherwise_clause
+      (assignment
+        left: (identifier)
+        right: (number)))))
+
+==========================
+Try with an error variable
+==========================
+
+try
+  x = 1;
+catch err
+  y = 2;
+end_try_catch
+---
+
+(source_file
+  (try_statement
+    (assignment
+      left: (identifier)
+      right: (number))
+    (catch_clause
+      error: (identifier)
+      (assignment
+        left: (identifier)
+        right: (number)))))
+
+==============
+Unwind protect
+==============
+
+unwind_protect
+  x = 1;
+unwind_protect_cleanup
+  y = 2;
+end_unwind_protect
+---
+
+(source_file
+  (unwind_protect_statement
+    (assignment
+      left: (identifier)
+      right: (number))
+    (assignment
+      left: (identifier)
+      right: (number))))
+
+=================
+A nested function
+=================
+
+function f ()
+  x = 1;
+  function g ()
+    y = 2;
+  endfunction
+endfunction
+---
+
+(source_file
+  (function_definition
+    name: (identifier)
+    parameters: (parameter_list)
+    (assignment
+      left: (identifier)
+      right: (number))
+    (function_definition
+      name: (identifier)
+      parameters: (parameter_list)
+      (assignment
+        left: (identifier)
+        right: (number)))))

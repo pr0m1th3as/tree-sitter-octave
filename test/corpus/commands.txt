@@ -1,0 +1,145 @@
+==============
+Command syntax
+==============
+
+hold on
+clear X Y
+---
+
+(source_file
+  (command_statement
+    name: (identifier)
+    (command_argument))
+  (command_statement
+    name: (identifier)
+    (command_argument)
+    (command_argument)))
+
+===============
+A flag argument
+===============
+
+which wafcn -all
+---
+
+(source_file
+  (command_statement
+    name: (identifier)
+    (command_argument)
+    (command_argument)))
+
+======================================
+A sign with a space after it subtracts
+======================================
+
+a - 1;
+x = a - b;
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (number)))
+  (assignment
+    left: (identifier)
+    right: (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+=================================
+Compound assignment is not a flag
+=================================
+
+a += 1;
+b -= 2;
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (number))
+  (assignment
+    left: (identifier)
+    right: (number)))
+
+============================
+An operator is not a command
+============================
+
+x + 1;
+y = a + 1;
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (number)))
+  (assignment
+    left: (identifier)
+    right: (binary_expression
+      left: (identifier)
+      right: (number))))
+
+=======================
+A call is not a command
+=======================
+
+f (x);
+disp (y);
+---
+
+(source_file
+  (expression_statement
+    (index_expression
+      value: (identifier)
+      (identifier)))
+  (expression_statement
+    (index_expression
+      value: (identifier)
+      (identifier))))
+
+=================
+Superclass method
+=================
+
+this = this@Base (X, Y);
+v = subsref@ns.C (s);
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (index_expression
+      value: (superclass_reference
+        object: (identifier)
+        class: (identifier))
+      (identifier)
+      (identifier)))
+  (assignment
+    left: (identifier)
+    right: (index_expression
+      value: (superclass_reference
+        object: (identifier)
+        class: (qualified_name
+          (identifier)
+          (identifier)))
+      (identifier))))
+
+==========================
+Metaclass in an expression
+==========================
+
+a = [?handle, ?inputParser];
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (metaclass
+          (identifier))
+        (metaclass
+          (identifier))))))

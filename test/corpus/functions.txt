@@ -1,0 +1,110 @@
+========================
+Definition with no ender
+========================
+
+function f ()
+  x = 1;
+---
+
+(source_file
+  (function_definition
+    name: (identifier)
+    parameters: (parameter_list)
+    (assignment
+      left: (identifier)
+      right: (number))))
+
+===========================
+Definition with both enders
+===========================
+
+function f ()
+  x = 1;
+endfunction
+function g ()
+  y = 2;
+end
+---
+
+(source_file
+  (function_definition
+    name: (identifier)
+    parameters: (parameter_list)
+    (assignment
+      left: (identifier)
+      right: (number)))
+  (function_definition
+    name: (identifier)
+    parameters: (parameter_list)
+    (assignment
+      left: (identifier)
+      right: (number))))
+
+====================
+Outputs and varargin
+====================
+
+function [a, b] = f (x, varargin)
+  a = x;
+  b = varargin{1};
+endfunction
+---
+
+(source_file
+  (function_definition
+    output: (multi_assignment_target
+      (identifier)
+      (identifier))
+    name: (identifier)
+    parameters: (parameter_list
+      (identifier)
+      (identifier))
+    (assignment
+      left: (identifier)
+      right: (identifier))
+    (assignment
+      left: (identifier)
+      right: (cell_index_expression
+        value: (identifier)
+        (number)))))
+
+=================
+A namespaced name
+=================
+
+function ns.f ()
+  x = 1;
+endfunction
+---
+
+(source_file
+  (function_definition
+    name: (qualified_name
+      (identifier)
+      (identifier))
+    parameters: (parameter_list)
+    (assignment
+      left: (identifier)
+      right: (number))))
+
+=============================
+Anonymous function and handle
+=============================
+
+f = @(x) x + 1;
+g = @sin;
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (anonymous_function
+      parameters: (parameter_list
+        (identifier))
+      body: (binary_expression
+        left: (identifier)
+        right: (number))))
+  (assignment
+    left: (identifier)
+    right: (function_handle
+      (identifier))))

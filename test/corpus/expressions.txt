@@ -1,0 +1,225 @@
+======================
+Matrix rows over lines
+======================
+
+A = [1 2
+3 4];
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (number)
+        (number))
+      (row
+        (number)
+        (number)))))
+
+====================================
+Implicit continuation in parentheses
+====================================
+
+if (a ||
+    b)
+  x = 1;
+endif
+---
+
+(source_file
+  (if_statement
+    condition: (parenthesized_expression
+      (binary_expression
+        left: (identifier)
+        right: (identifier)))
+    (assignment
+      left: (identifier)
+      right: (number))))
+
+=====================
+Explicit continuation
+=====================
+
+x = 1 + ...
+    2;
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (binary_expression
+      left: (number)
+      (line_continuation)
+      right: (number))))
+
+===================================
+Left division is not a continuation
+===================================
+
+x = A \ b;
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+=========================
+Cell indexing as a target
+=========================
+
+c{1} = 2;
+---
+
+(source_file
+  (assignment
+    left: (cell_index_expression
+      value: (identifier)
+      (number))
+    right: (number)))
+
+=============================
+Assignment inside parentheses
+=============================
+
+(dim = find (s != 1, 1)) || (dim = 1);
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (parenthesized_expression
+        (assignment
+          left: (identifier)
+          right: (index_expression
+            value: (identifier)
+            (binary_expression
+              left: (identifier)
+              right: (number))
+            (number))))
+      right: (parenthesized_expression
+        (assignment
+          left: (identifier)
+          right: (number))))))
+
+=========================
+Assignment as an argument
+=========================
+
+while (ischar (ln = fgets (fid)))
+  x = 1;
+endwhile
+---
+
+(source_file
+  (while_statement
+    condition: (parenthesized_expression
+      (index_expression
+        value: (identifier)
+        (assignment
+          left: (identifier)
+          right: (index_expression
+            value: (identifier)
+            (identifier)))))
+    (assignment
+      left: (identifier)
+      right: (number))))
+
+===========================
+A range is flat, not nested
+===========================
+
+a = 1:10;
+b = 1:2:10;
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (range_expression
+      start: (number)
+      stop: (number)))
+  (assignment
+    left: (identifier)
+    right: (range_expression
+      start: (number)
+      step: (number)
+      stop: (number))))
+
+===============
+The colon index
+===============
+
+y = b(:);
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (index_expression
+      value: (identifier)
+      (colon))))
+
+================
+Digit separators
+================
+
+x = 20_000;
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (number)))
+
+=========================
+end is the last subscript
+=========================
+
+x = a(end);
+y = c{end+1};
+z = v(2:end);
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (index_expression
+      value: (identifier)
+      (end_index)))
+  (assignment
+    left: (identifier)
+    right: (cell_index_expression
+      value: (identifier)
+      (binary_expression
+        left: (end_index)
+        right: (number))))
+  (assignment
+    left: (identifier)
+    right: (index_expression
+      value: (identifier)
+      (range_expression
+        start: (number)
+        stop: (end_index)))))
+
+============================
+end still terminates a block
+============================
+
+for i = 1:3
+  x = i;
+end
+---
+
+(source_file
+  (for_statement
+    variable: (identifier)
+    range: (range_expression
+      start: (number)
+      stop: (number))
+    (assignment
+      left: (identifier)
+      right: (identifier))))

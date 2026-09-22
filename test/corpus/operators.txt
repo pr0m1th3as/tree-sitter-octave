@@ -1,0 +1,141 @@
+========================
+Negation, both spellings
+========================
+
+a = !b;
+c = ~d;
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (unary_expression
+      argument: (identifier)))
+  (assignment
+    left: (identifier)
+    right: (unary_expression
+      argument: (identifier))))
+
+==========================
+Inequality, both spellings
+==========================
+
+a = b != c;
+d = e ~= f;
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (binary_expression
+      left: (identifier)
+      right: (identifier)))
+  (assignment
+    left: (identifier)
+    right: (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+===================
+Compound assignment
+===================
+
+a += 1;
+b -= 2;
+c *= 3;
+d /= 4;
+e ^= 5;
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (number))
+  (assignment
+    left: (identifier)
+    right: (number))
+  (assignment
+    left: (identifier)
+    right: (number))
+  (assignment
+    left: (identifier)
+    right: (number))
+  (assignment
+    left: (identifier)
+    right: (number)))
+
+================================
+Element-wise compound assignment
+================================
+
+a .*= 2;
+b ./= 3;
+c .^= 4;
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (number))
+  (assignment
+    left: (identifier)
+    right: (number))
+  (assignment
+    left: (identifier)
+    right: (number)))
+
+=======================
+Increment and decrement
+=======================
+
+i++;
+j--;
+---
+
+(source_file
+  (expression_statement
+    (postfix_expression
+      argument: (identifier)))
+  (expression_statement
+    (postfix_expression
+      argument: (identifier))))
+
+======================================
+Transpose against a string in a matrix
+======================================
+
+m = [a' b'];
+n = [a 'txt'];
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (postfix_expression
+          argument: (identifier))
+        (postfix_expression
+          argument: (identifier)))))
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (identifier)
+        (string
+          (single_quoted_string))))))
+
+====================================
+Power binds tighter than unary minus
+====================================
+
+x = -2^2;
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (unary_expression
+      argument: (binary_expression
+        left: (number)
+        right: (number)))))

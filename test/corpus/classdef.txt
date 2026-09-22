@@ -1,0 +1,84 @@
+=======================
+Class with a superclass
+=======================
+
+classdef c < handle
+endclassdef
+---
+
+(source_file
+  (classdef_definition
+    name: (identifier)
+    superclasses: (superclass_list
+      (identifier))))
+
+==========================
+Properties with attributes
+==========================
+
+classdef c
+  properties (Access = private)
+    P = 1;
+  endproperties
+endclassdef
+---
+
+(source_file
+  (classdef_definition
+    name: (identifier)
+    (properties_block
+      attributes: (attribute_list
+        (attribute
+          name: (identifier)
+          value: (identifier)))
+      (property
+        name: (identifier)
+        default: (number)))))
+
+========================
+Attributes with no space
+========================
+
+classdef c
+  properties(Dependent = true)
+    Q
+  endproperties
+endclassdef
+---
+
+(source_file
+  (classdef_definition
+    name: (identifier)
+    (properties_block
+      attributes: (attribute_list
+        (attribute
+          name: (identifier)
+          value: (identifier)))
+      (property
+        name: (identifier)))))
+
+=============
+Methods block
+=============
+
+classdef c
+  methods
+    function r = m (this)
+      r = 1;
+    endfunction
+  endmethods
+endclassdef
+---
+
+(source_file
+  (classdef_definition
+    name: (identifier)
+    (methods_block
+      (function_definition
+        output: (identifier)
+        name: (identifier)
+        parameters: (parameter_list
+          (identifier))
+        (assignment
+          left: (identifier)
+          right: (number))))))

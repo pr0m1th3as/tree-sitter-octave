@@ -1,0 +1,99 @@
+=== A typed if terminator
+lenient: ok
+strict: ok
+---
+if (a)
+  x = 1;
+endif
+
+=== A bare end closing an if
+lenient: ok
+strict: reject
+---
+if (a)
+  x = 1;
+end
+
+=== A bare end closing a while
+lenient: ok
+strict: reject
+---
+while (a)
+  x = 1;
+end
+
+=== A bare end closing a for
+lenient: ok
+strict: reject
+---
+for i = 1:3
+  x = i;
+end
+
+=== A bare end closing a switch
+lenient: ok
+strict: reject
+---
+switch (v)
+  case 1
+    x = 1;
+end
+
+=== A bare end closing a classdef
+lenient: ok
+strict: reject
+---
+classdef c
+  properties
+    P
+  end
+end
+
+=== end is still the last subscript
+lenient: ok
+strict: ok
+---
+x = a(end);
+
+=== A function closed with endfunction
+lenient: ok
+strict: ok
+---
+function f ()
+  x = 1;
+endfunction
+
+=== A function closed with a bare end
+lenient: ok
+strict: reject
+---
+function f ()
+  x = 1;
+end
+
+=== A function with no terminator
+lenient: ok
+strict: reject
+---
+function f ()
+  x = 1;
+
+=== An argument validation block is MATLAB's
+lenient: ok
+strict: reject
+---
+function y = f (x)
+  arguments
+    x double
+  end
+  y = x;
+endfunction
+
+=== Octave-only syntax stays Octave-only
+lenient: ok
+strict: ok
+---
+do
+  x += 1;
+  i++;
+until (a)

@@ -1,0 +1,9 @@
+# Built parsers and objects
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.o
+*.obj
+*.wasm

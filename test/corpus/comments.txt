@@ -1,0 +1,34 @@
+==================
+Line comments, both markers
+==================
+
+% percent
+# hash
+x = 1;  % trailing
+
+---
+
+(source_file
+  (comment)
+  (comment)
+  (assignment left: (identifier) right: (number))
+  (comment))
+
+==================
+Block comments, both markers
+==================
+
+%{
+this is commented
+%}
+#{
+so is this
+#}
+y = 2;
+
+---
+
+(source_file
+  (comment)
+  (comment)
+  (assignment left: (identifier) right: (number)))

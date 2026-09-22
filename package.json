@@ -1,0 +1,28 @@
+{
+  "name": "tree-sitter-octave",
+  "version": "0.0.1",
+  "description": "Octave grammar for tree-sitter, permissive of MATLAB syntax",
+  "repository": "github:pr0m1th3as/tree-sitter-octave",
+  "license": "GPL-3.0-or-later",
+  "keywords": [
+    "incremental",
+    "parsing",
+    "tree-sitter",
+    "octave"
+  ],
+  "peerDependenciesMeta": {
+    "tree-sitter": {
+      "optional": true
+    }
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.octave",
+      "injection-regex": "^octave$",
+      "file-types": [
+        "m"
+      ]
+    }
+  ],
+  "author": "Andreas Bertsatos <abertsatos@biol.uoa.gr>"
+}
