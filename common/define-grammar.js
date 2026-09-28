@@ -99,6 +99,12 @@ return grammar ({
      the parser cannot know which until it has read past the bracket. */
   conflicts: $ => [
     [$._assignable, $._non_range_expression],
+    /* `{a @sin}` is a superclass call in Octave and `{a @(t) t}` two
+       elements, and which it is shows only after the `@`. */
+    ...(matlab ? [] : [[$._assignable, $._non_range_expression,
+                        $.superclass_reference],
+                       [$._non_range_expression, $.superclass_reference],
+                       [$._assignable, $.superclass_reference]]),
     ...(matlab ? [[$.elseif_clause, $._chainable]] : []),
     ...(matlab ? [[$.while_statement, $._chainable]] : []),
     ...(matlab ? [[$.if_statement, $._chainable]] : []),
@@ -707,10 +713,19 @@ return grammar ({
                             ...(matlab ? [] : [$.assignment])),
 
     /* `this@Base (x)` and `subsref@ns.Class (s)` reach a superclass method,
-       which MATLAB spells the same way. */
-    superclass_reference: $ => prec (PREC.call, seq (
-      field ('object', $.identifier), '@', field ('class', $._function_name),
-    )),
+       which MATLAB spells the same way.  Octave's lexer reads a name, a
+       space and `@name` as one even inside brackets, so `{a @sin}` holds a
+       superclass call rather than `a` and a handle: the separator a space
+       leaves there is taken back, and preferred over a new element. */
+    superclass_reference: $ => choice (
+      prec (PREC.call, seq (
+        field ('object', $.identifier), '@', field ('class', $._function_name),
+      )),
+      ...(matlab ? [] : [prec.dynamic (1, seq (
+        field ('object', $.identifier), $._element_gap,
+        '@', field ('class', $._function_name),
+      ))]),
+    ),
 
     function_handle: $ => seq ('@', $._function_name),
 

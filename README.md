@@ -211,7 +211,10 @@ What the grammar cannot decide on its own, all in `common/scanner.h`:
   `;`, line break or closing delimiter and where a space separates nothing:
   `{@(t) abs (t), 2}` holds two elements and `{@(t) t (1) 2}` is an error.
   MATLAB has no such exception, so strict MATLAB reads the latter as three
-  elements, as R2024a does.
+  elements, as R2024a does.  One more exception, Octave's lexer taking a
+  name, a space and `@name` as one token: `{a @sin}` is the superclass call
+  `a@sin`, while `{1 @sin}` and `{a @(t) t}` are two elements.  MATLAB reads
+  `{a @sin}` as two elements, and so does strict MATLAB.
 - **Where a line continuation is.**  `...` is the scanner's token so that it
   counts as the space it stands for: `[v...` with `(w)]` opening the next
   line is two elements.
@@ -247,10 +250,10 @@ None that any of the files measured here reach.  Every Octave file and every
 MATLAB file parses with no `ERROR` node, the dialect cases all hold, and the
 constructs MATLAB has that Octave does not parse as their own nodes rather
 than as an approximation.  One construct outside them reads otherwise than in
-Octave: **a name, a space and `@name` inside brackets.**  Octave reads
-`{a @sin}` as a call to the superclass method `a@sin`; here it is two
-elements.  A superclass call is written `obj@Base (x)`, without the space, and
-is only legal inside a class method.
+Octave: **a line ending in a binary operator.**  `x = 1 +` with `2;` on the
+next line is accepted as one statement, where Octave requires `...` and
+rejects it.  Outside parentheses the scanner declines a line break where no
+statement can end, and the grammar then takes it as a space.
 
 A body may share its header's line, `if (c) x = 1; endif`, only where the
 condition is parenthesised, and after a keyword-only header such as `else` or

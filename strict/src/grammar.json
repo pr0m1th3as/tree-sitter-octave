@@ -3649,33 +3649,71 @@
       ]
     },
     "superclass_reference": {
-      "type": "PREC",
-      "value": 12,
-      "content": {
-        "type": "SEQ",
-        "members": [
-          {
-            "type": "FIELD",
-            "name": "object",
-            "content": {
-              "type": "SYMBOL",
-              "name": "identifier"
-            }
-          },
-          {
-            "type": "STRING",
-            "value": "@"
-          },
-          {
-            "type": "FIELD",
-            "name": "class",
-            "content": {
-              "type": "SYMBOL",
-              "name": "_function_name"
-            }
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "PREC",
+          "value": 12,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "object",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "identifier"
+                }
+              },
+              {
+                "type": "STRING",
+                "value": "@"
+              },
+              {
+                "type": "FIELD",
+                "name": "class",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_function_name"
+                }
+              }
+            ]
           }
-        ]
-      }
+        },
+        {
+          "type": "PREC_DYNAMIC",
+          "value": 1,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "object",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "identifier"
+                }
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_element_gap"
+              },
+              {
+                "type": "STRING",
+                "value": "@"
+              },
+              {
+                "type": "FIELD",
+                "name": "class",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "_function_name"
+                }
+              }
+            ]
+          }
+        }
+      ]
     },
     "function_handle": {
       "type": "SEQ",
@@ -3881,6 +3919,19 @@
     [
       "_assignable",
       "_non_range_expression"
+    ],
+    [
+      "_assignable",
+      "_non_range_expression",
+      "superclass_reference"
+    ],
+    [
+      "_non_range_expression",
+      "superclass_reference"
+    ],
+    [
+      "_assignable",
+      "superclass_reference"
     ],
     [
       "_expression",

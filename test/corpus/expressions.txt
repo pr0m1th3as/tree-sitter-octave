@@ -109,13 +109,13 @@ z = [a -b'];
 A space in brackets before what opens an element
 =====================================================
 
-x = [a 'b' .5 !c @f];
+x = {a 'b' .5 !c 1 @f};
 ---
 
 (source_file
   (assignment
     left: (identifier)
-    right: (matrix
+    right: (cell
       (row
         (identifier)
         (string
@@ -123,6 +123,41 @@ x = [a 'b' .5 !c @f];
         (number)
         (unary_expression
           argument: (identifier))
+        (number)
+        (function_handle
+          (identifier))))))
+
+======================================================
+A name, a space and @name in brackets is one call
+======================================================
+
+x = {a @sin};
+y = {a @(t) t};
+z = {1 @sin};
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (cell
+      (row
+        (superclass_reference
+          object: (identifier)
+          class: (identifier)))))
+  (assignment
+    left: (identifier)
+    right: (cell
+      (row
+        (identifier)
+        (anonymous_function
+          parameters: (parameter_list
+            (identifier))
+          body: (identifier)))))
+  (assignment
+    left: (identifier)
+    right: (cell
+      (row
+        (number)
         (function_handle
           (identifier))))))
 
