@@ -1,0 +1,13 @@
+=== A space in an anonymous function's body opens no element in Octave
+lenient: reject
+strict: reject
+matlab: ok
+---
+c = {@(t) t (1) 2};
+
+=== Two anonymous functions in a cell need a comma in Octave
+lenient: reject
+strict: reject
+matlab: ok
+---
+c = {@(y) mean (y) @(y) std (y)};

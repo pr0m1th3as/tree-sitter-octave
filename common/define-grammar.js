@@ -79,10 +79,11 @@ return grammar ({
     '(', ')', '[', ']', '{', '}',
     /* Lexed by the scanner, so a word Octave reserves never becomes a name. */
     $.identifier,
-    /* A delimiter with a space before it inside brackets, which opens a new
-       element and so can never index the one before it. */
-    $._element_lparen,
-    $._element_lbrace,
+    /* The comma Octave's lexer puts where a space separates two elements
+       inside brackets, of no width; and the line continuation, which counts
+       as that space. */
+    $._element_gap,
+    $.line_continuation,
     /* An anonymous function's body inside brackets is not an element list,
        so the scanner marks where its parameters open and where its body
        ends. */
@@ -99,11 +100,8 @@ return grammar ({
   conflicts: $ => [
     [$._assignable, $._non_range_expression],
     ...(matlab ? [[$.elseif_clause, $._chainable]] : []),
-    ...(matlab ? [[$._assignable, $._chainable]] : []),
     ...(matlab ? [[$.while_statement, $._chainable]] : []),
     ...(matlab ? [[$.if_statement, $._chainable]] : []),
-    ...(matlab ? [[$._non_range_expression, $._chainable]] : []),
-    ...(matlab ? [[$._assignable, $._non_range_expression, $._chainable]] : []),
     /* `a:b:c` is one range with a step and `a:b` is one without: which it is
        shows only after the second colon. */
     [$._expression, $.range_expression],
@@ -164,13 +162,6 @@ return grammar ({
                            /[%#][^}\r\n][^\r\n]*\r?\n/,
                            /[%#]\r?\n/)),
            /[ \t]*/, strict ? '#}' : matlab ? '%}' : choice ('%}', '#}')),
-    )),
-
-    /* `...` takes a comment after it; a lone backslash continues a line only
-       at the end of one, being left division anywhere else. */
-    line_continuation: _ => token (choice (
-      seq ('...', /[^\r\n]*/, /\r?\n/),
-      seq ('\\', /[ \t]*/, /\r?\n/),
     )),
 
     _terminator: $ => choice (';', ',', $._newline),
@@ -238,8 +229,9 @@ return grammar ({
     ),
 
     multi_assignment_target: $ => seq (
-      '[', optional (seq ($._target_element, repeat (seq (optional (','),
-                                                          $._target_element)))),
+      '[', optional (seq ($._target_element,
+                         repeat (seq (choice (',', $._element_gap),
+                                      $._target_element)))),
       ']',
     ),
 
@@ -611,7 +603,7 @@ return grammar ({
     /* An assignment is an expression only in Octave, and only where
        parentheses make it one. */
     parenthesized_expression: $ => seq (
-      choice ('(', alias ($._element_lparen, '(')), matlab ? $._expression : choice ($._expression, $.assignment), ')',
+      '(', matlab ? $._expression : choice ($._expression, $.assignment), ')',
     ),
 
     colon: _ => ':',
@@ -732,15 +724,15 @@ return grammar ({
 
     matrix: $ => seq ('[', optional ($._rows), ']'),
 
-    cell: $ => seq (choice ('{', alias ($._element_lbrace, '{')),
-                    optional ($._rows), '}'),
+    cell: $ => seq ('{', optional ($._rows), '}'),
 
     _rows: $ => seq (
       $.row, repeat (seq (choice (';', $._newline), optional ($.row))),
     ),
 
     row: $ => seq (
-      $._matrix_element, repeat (seq (optional (','), $._matrix_element)),
+      $._matrix_element,
+      repeat (seq (choice (',', $._element_gap), $._matrix_element)),
       optional (','),
     ),
 

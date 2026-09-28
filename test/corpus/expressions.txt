@@ -72,6 +72,97 @@ y = c {2};
       value: (identifier)
       (number))))
 
+=====================================================
+A space before a sign in brackets starts an element
+=====================================================
+
+x = [1 -2];
+y = [1 - 2];
+z = [a -b'];
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (number)
+        (unary_expression
+          argument: (number)))))
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (binary_expression
+          left: (number)
+          right: (number)))))
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (identifier)
+        (unary_expression
+          argument: (postfix_expression
+            argument: (identifier)))))))
+
+=====================================================
+A space in brackets before what opens an element
+=====================================================
+
+x = [a 'b' .5 !c @f];
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (identifier)
+        (string
+          (single_quoted_string))
+        (number)
+        (unary_expression
+          argument: (identifier))
+        (function_handle
+          (identifier))))))
+
+=====================================
+A range with a step inside brackets
+=====================================
+
+y = v([1:2:end]);
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (index_expression
+      value: (identifier)
+      (matrix
+        (row
+          (range_expression
+            start: (number)
+            step: (number)
+            stop: (end_index)))))))
+
+====================================================
+A line continuation in brackets counts as a space
+====================================================
+
+x = [v...
+(w)];
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (identifier)
+        (line_continuation)
+        (parenthesized_expression
+          (identifier))))))
+
 ==============================================================
 A space in an anonymous function's body in brackets is no split
 ==============================================================

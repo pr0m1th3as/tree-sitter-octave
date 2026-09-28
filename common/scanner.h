@@ -44,8 +44,8 @@ enum TokenType {
   LBRACE,
   RBRACE,
   IDENTIFIER,
-  ELEMENT_LPAREN,
-  ELEMENT_LBRACE,
+  ELEMENT_GAP,
+  LINE_CONTINUATION,
   ANONYMOUS_LPAREN,
   COMMA,
   SEMICOLON,
@@ -85,16 +85,22 @@ static bool word_char (int32_t c)
 
 #define MAX_DEPTH 256
 
+/* `continued` is set by a line continuation and read by the next scan, so
+   that the continuation counts as the space it stands for. */
 typedef struct {
   char stack[MAX_DEPTH];
   unsigned depth;
+  bool continued;
 } Scanner;
 
 void *TS_FN (_external_scanner_create) (void)
 {
   Scanner *s = (Scanner *) malloc (sizeof (Scanner));
   if (s != NULL)
-    s->depth = 0;
+    {
+      s->depth = 0;
+      s->continued = false;
+    }
   return s;
 }
 
@@ -108,10 +114,11 @@ unsigned TS_FN (_external_scanner_serialize) (void *payload,
 {
   Scanner *s = (Scanner *) payload;
   unsigned n = s->depth;
-  if (n > TREE_SITTER_SERIALIZATION_BUFFER_SIZE)
-    n = TREE_SITTER_SERIALIZATION_BUFFER_SIZE;
-  memcpy (buffer, s->stack, n);
-  return n;
+  if (n > TREE_SITTER_SERIALIZATION_BUFFER_SIZE - 1)
+    n = TREE_SITTER_SERIALIZATION_BUFFER_SIZE - 1;
+  buffer[0] = (char) s->continued;
+  memcpy (buffer + 1, s->stack, n);
+  return n + 1;
 }
 
 void TS_FN (_external_scanner_deserialize) (void *payload,
@@ -119,9 +126,14 @@ void TS_FN (_external_scanner_deserialize) (void *payload,
                                                       unsigned length)
 {
   Scanner *s = (Scanner *) payload;
-  s->depth = length;
+  s->depth = 0;
+  s->continued = false;
   if (length > 0)
-    memcpy (s->stack, buffer, length);
+    {
+      s->continued = (bool) buffer[0];
+      s->depth = length - 1;
+      memcpy (s->stack, buffer + 1, s->depth);
+    }
 }
 
 static void push (Scanner *s, char c)
@@ -181,10 +193,13 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
                                                const bool *valid_symbols)
 {
   Scanner *s = (Scanner *) payload;
+  bool continued = s->continued;
+  s->continued = false;
 
   for (;;)
     {
-      bool spaced = false;
+      bool spaced = continued;
+      continued = false;
       while (lexer->lookahead == ' ' || lexer->lookahead == '\t')
         {
           spaced = true;
@@ -252,9 +267,100 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
           return true;
         }
 
+      bool in_matrix = (top (s) == '[' || top (s) == '{');
+
+      /* Only an anonymous function's parameters can follow `@`, so no parse
+         state takes both of these; error recovery offers every token. */
+      bool recovering = (valid_symbols[ANONYMOUS_LPAREN]
+                         && valid_symbols[LPAREN]);
+
+      /* A line continuation is the scanner's, so that it counts as the
+         space it stands for: `[v...` with `(w)]` opening the next line is
+         two elements, as in Octave.  `...` runs to the end of the line; a
+         backslash continues only when nothing but blanks follow it.  A dot
+         and a digit after a space inside brackets open a new element, as in
+         `[1 .5]`.  Every other dot is declined; a scan that declines is
+         reset to where it began, so looking ahead here is safe as long as
+         nothing falls through to another block. */
+      if (lexer->lookahead == '.' || lexer->lookahead == '\\')
+        {
+          lexer->mark_end (lexer);
+          bool dots = (lexer->lookahead == '.');
+          lexer->advance (lexer, false);
+          if (dots)
+            {
+              if (lexer->lookahead >= '0' && lexer->lookahead <= '9')
+                {
+                  if (in_matrix && spaced && ! recovering
+                      && valid_symbols[ELEMENT_GAP])
+                    {
+                      lexer->result_symbol = ELEMENT_GAP;
+                      return true;
+                    }
+                  return false;
+                }
+              if (lexer->lookahead != '.')
+                return false;
+              lexer->advance (lexer, false);
+              if (lexer->lookahead != '.')
+                return false;
+              while (lexer->lookahead != 0 && lexer->lookahead != '\n'
+                     && lexer->lookahead != '\r')
+                lexer->advance (lexer, false);
+            }
+          else
+            {
+              while (lexer->lookahead == ' ' || lexer->lookahead == '\t')
+                lexer->advance (lexer, false);
+              if (lexer->lookahead != '\n' && lexer->lookahead != '\r')
+                return false;
+            }
+          if (lexer->lookahead == '\r')
+            lexer->advance (lexer, false);
+          if (lexer->lookahead == '\n')
+            lexer->advance (lexer, false);
+          lexer->mark_end (lexer);
+          s->continued = true;
+          lexer->result_symbol = LINE_CONTINUATION;
+          return true;
+        }
+
+      /* Inside brackets Octave turns a space between two elements into a
+         comma, and the scanner does the same with a token of no width.  A
+         space opens a new element before a name, a number, a delimiter, a
+         string or `@`; before `!` or `~` unless `=` follows; and before a
+         sign unless a blank or `=` follows, so `[1 -2]` is two elements and
+         `[1 - 2]` one.  Not directly inside an anonymous function's body in
+         Octave, where a space separates nothing. */
+      if (in_matrix && spaced && ! recovering && valid_symbols[ELEMENT_GAP])
+        {
+          int32_t c = lexer->lookahead;
+          if (word_char (c) || c == '(' || c == '[' || c == '{'
+              || c == '\'' || c == '"' || c == '@')
+            {
+              lexer->mark_end (lexer);
+              lexer->result_symbol = ELEMENT_GAP;
+              return true;
+            }
+          if (c == '!' || c == '~' || c == '+' || c == '-')
+            {
+              lexer->mark_end (lexer);
+              lexer->advance (lexer, false);
+              int32_t n = lexer->lookahead;
+              bool opens = (c == '!' || c == '~')
+                           ? (n != '=')
+                           : ! (n == ' ' || n == '\t' || n == '\n'
+                                || n == '\r' || n == 0 || n == '=');
+              if (! opens)
+                return false;
+              lexer->result_symbol = ELEMENT_GAP;
+              return true;
+            }
+        }
+
       /* One lexer for every word.  Nothing else may step over a prefix and
-         then decline: a scanner that gives up after advancing does not
-         reliably leave the position where it found it, which showed up as
+         then fall through: a block that gives up after advancing and lets
+         the next block run leaves the position wrong, which showed up as
          `abc` parsing as an error followed by `bc`.
          A word is the last subscript, the keyword opening an argument
          validation block, a name, or a word Octave reserves, which is
@@ -320,8 +426,6 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
           return true;
         }
 
-      bool in_matrix = (top (s) == '[' || top (s) == '{');
-
       if (lexer->lookahead == '\'' && valid_symbols[TRANSPOSE])
         {
           /* Octave tells a transpose from a string by the space before the
@@ -333,16 +437,6 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
           return false;
         }
 
-      /* Inside brackets a space before a delimiter starts a new element:
-         `[v (w)]` is `[v, (w)]` and `{c {2}}` is `{c, {2}}`.  The element
-         token is one an index cannot take. */
-      bool element = (spaced && in_matrix);
-
-      /* Only an anonymous function's parameters can follow `@`, so no parse
-         state takes both of these; error recovery offers every token. */
-      bool recovering = (valid_symbols[ANONYMOUS_LPAREN]
-                         && valid_symbols[LPAREN]);
-
       switch (lexer->lookahead)
         {
         case '(':
@@ -352,8 +446,6 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
               return emit (lexer, ANONYMOUS_LPAREN);
             }
           push (s, '(');
-          if (element && valid_symbols[ELEMENT_LPAREN])
-            return emit (lexer, ELEMENT_LPAREN);
           /* Octave's style writes a call with a space before its
              parenthesis and an index without one, `max (2, 5)` against
              `x(2)`.  The token carries the space into the tree and changes
@@ -366,13 +458,9 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
           push (s, '[');
           return emit (lexer, LBRACKET);
         case '{':
-          if (element && valid_symbols[ELEMENT_LBRACE])
-            {
-              push (s, '{');
-              return emit (lexer, ELEMENT_LBRACE);
-            }
           /* A brace after an expression indexes it, as in Octave, however
-             it is spaced outside brackets and when unspaced inside them. */
+             it is spaced outside brackets; inside them a space has already
+             opened a new element. */
           if (! recovering && valid_symbols[INDEX_LBRACE])
             {
               push (s, 'i');
@@ -385,8 +473,15 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
             end_bodies (s);
             bool parameters = (top (s) == 'a');
             pop (s);
+            /* Octave reads an anonymous function's body inside brackets with
+               no separators in it.  MATLAB does not: a space separates
+               elements there too, so `{@(t) t (1) 2}` holds three. */
+#ifndef TS_MATLAB
             if (parameters && (top (s) == '[' || top (s) == '{'))
               push (s, 'b');
+#else
+            (void) parameters;
+#endif
             return emit (lexer, RPAREN);
           }
         case ']':

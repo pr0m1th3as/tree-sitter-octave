@@ -91,8 +91,8 @@ has since moved to Octave's own spellings.
 tree-sitter generate --no-bindings   # grammar.js -> src/parser.c
 (cd strict && tree-sitter generate --no-bindings)
 (cd matlab && tree-sitter generate --no-bindings)
-tree-sitter test                     # 59 corpus tests, 8 highlight assertions
-tools/dialect-test.py                # 77 assertions the variants must differ on
+tree-sitter test                     # 63 corpus tests, 8 highlight assertions
+tools/dialect-test.py                # 81 assertions the variants must differ on
 tree-sitter parse FILE               # print the tree for one file
 make                                 # libtree-sitter-octave.so, .a and the .pc
 ```
@@ -108,7 +108,8 @@ The scanner is shared: `common/scanner.h` holds it, and each variant's
 `src/scanner.c` defines `TS_LANG` before including it, since tree-sitter
 derives the exported names from the grammar's name.  `TS_STRICT` also switches
 the token enum, because strict Octave declares one external fewer, having no
-argument validation block.
+argument validation block, and `TS_MATLAB` drops the anonymous function
+body that Octave alone reads inside brackets.
 
 **`--no-bindings` is not optional.**  The bare command writes Node, Go,
 Python, Rust and Swift bindings, which do nothing unless published to four
@@ -199,12 +200,21 @@ What the grammar cannot decide on its own, all in `common/scanner.h`:
 - **Where a command begins.**  `hold on` is `hold ('on')` when a space
   separates the name from a word that cannot continue an expression, and only
   at the top level, since inside brackets a space separates elements.
-- **Whether a space inside brackets starts an element.**  `[v (w)]` is `v`
-  and `(w)`, and `{c {2}}` is `c` and a cell, as Octave reads them, so a `(`
-  or `{` with a space before it directly inside brackets is a token an index
-  cannot take.  Not in an anonymous function's body, which runs to the next
-  `,`, `;`, line break or closing delimiter and where a space separates
-  nothing: `{@(t) abs (t), 2}` holds two elements.
+- **Whether a space inside brackets separates two elements.**  Octave's
+  lexer turns such a space into a comma, and the scanner does the same with a
+  token of no width, which a row needs between two elements where it has no
+  comma.  A space opens a new element before a name, a number, a delimiter,
+  a string or `@`; before `!` or `~` unless `=` follows; and before a sign
+  unless a blank or `=` follows.  So `[1 -2]` is two elements and `[1 - 2]`
+  one, `[v (w)]` is `v` and `(w)`, and `{c {2}}` is `c` and a cell.  In
+  Octave not in an anonymous function's body, which runs to the next `,`,
+  `;`, line break or closing delimiter and where a space separates nothing:
+  `{@(t) abs (t), 2}` holds two elements and `{@(t) t (1) 2}` is an error.
+  MATLAB has no such exception, so strict MATLAB reads the latter as three
+  elements, as R2024a does.
+- **Where a line continuation is.**  `...` is the scanner's token so that it
+  counts as the space it stands for: `[v...` with `(w)]` opening the next
+  line is two elements.
 - **Whether a call's parenthesis has a space before it**, outside brackets,
   which the `spaced` field records for the queries.
 - **The bracket stack** the rest need, which is why the delimiters, `,` and
@@ -236,16 +246,15 @@ ordinary names, and the grammar treats them so.
 None that any of the files measured here reach.  Every Octave file and every
 MATLAB file parses with no `ERROR` node, the dialect cases all hold, and the
 constructs MATLAB has that Octave does not parse as their own nodes rather
-than as an approximation.  Two constructs outside them are known to read
-wrongly:
+than as an approximation.  Two constructs outside them read otherwise than in
+Octave:
 
-- **A line continuation directly before a parenthesis inside brackets.**
-  `[v...` followed by `(w)]` opening the next line reads as an index, where
-  Octave reads two elements.  The continuation is the grammar's token, so the
-  scanner sees no space.  With the next line indented, `[v ...` and ` (w)]`,
-  it reads correctly.
-- **A space in an anonymous function's body followed by a new element.**
-  `{@(t) t (1) 2}` is accepted as a function and `2`, where Octave rejects it.
+- **A name, a space and `@name` inside brackets.**  Octave reads `{a @sin}` as
+  a call to the superclass method `a@sin`; here it is two elements.  A
+  superclass call is written `obj@Base (x)`, without the space, and is only
+  legal inside a class method.
+- **A backslash ending a line outside a string.**  It is accepted as a line
+  continuation, which Octave 11 no longer is: there it is a syntax error.
 
 A body may share its header's line, `if (c) x = 1; endif`, only where the
 condition is parenthesised, and after a keyword-only header such as `else` or
