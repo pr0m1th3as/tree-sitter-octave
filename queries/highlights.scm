@@ -3,6 +3,10 @@
 ; Copyright (C) 2026 Andreas Bertsatos <abertsatos@biol.uoa.gr>
 ; SPDX-License-Identifier: GPL-3.0-or-later
 
+; Where several patterns capture one node the last one wins, so the general
+; pattern comes first and every specific one overrides it.
+(identifier) @variable
+
 ; Literals
 
 (comment) @comment @spell
@@ -18,9 +22,7 @@
   name: (qualified_name) @function)
 
 (function_definition
-  parameters: (parameter_list (end_index) @keyword
-
-(identifier) @variable.parameter))
+  parameters: (parameter_list (identifier) @variable.parameter))
 
 (ignored_output) @variable.parameter
 
@@ -47,9 +49,7 @@
   value: (identifier) @function.call)
 
 (cell_index_expression
-  value: (end_index) @keyword
-
-(identifier) @variable)
+  value: (identifier) @variable)
 
 (field_expression
   field: (identifier) @property)
@@ -61,8 +61,6 @@
   (qualified_name) @function)
 
 (end_index) @keyword
-
-(identifier) @variable
 
 ; Operators and punctuation
 
