@@ -4,10 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * One job: decide whether a newline ends a statement.  At the top level it
- * does.  Inside parentheses it is whitespace, which is what lets an
- * expression break after an operator with no continuation marker.  Inside
- * brackets and braces it separates the rows of a matrix or a cell, so it
- * still carries meaning and is emitted.
+ * does.  Inside parentheses and the braces of a cell index it is
+ * whitespace, which is what lets an expression break after an operator with
+ * no continuation marker.  Inside brackets and the braces of a cell it
+ * separates the rows of a matrix or a cell, so it still carries meaning and
+ * is emitted.
  *
  * The parse state cannot answer this: tree-sitter reports an external token
  * as valid in every state that could recover with one, so a newline reads as
@@ -48,6 +49,8 @@ enum TokenType {
   ANONYMOUS_LPAREN,
   COMMA,
   SEMICOLON,
+  SPACED_LPAREN,
+  INDEX_LBRACE,
 };
 
 /* Octave's own reserved words, from `iskeyword ()` on 11.3.0.  `__FILE__`
@@ -134,8 +137,9 @@ static void pop (Scanner *s)
 }
 
 /* The stack holds the open delimiters, plus 'a' for the parentheses around
-   an anonymous function's parameters and 'b' for the body of an anonymous
-   function written directly inside brackets. */
+   an anonymous function's parameters, 'b' for the body of an anonymous
+   function written directly inside brackets, and 'i' for the braces of a
+   cell index, inside which a space separates nothing. */
 static char top (Scanner *s)
 {
   return (s->depth > 0 ? s->stack[s->depth - 1] : 0);
@@ -334,11 +338,14 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
          token is one an index cannot take. */
       bool element = (spaced && in_matrix);
 
+      /* Only an anonymous function's parameters can follow `@`, so no parse
+         state takes both of these; error recovery offers every token. */
+      bool recovering = (valid_symbols[ANONYMOUS_LPAREN]
+                         && valid_symbols[LPAREN]);
+
       switch (lexer->lookahead)
         {
         case '(':
-          /* Only an anonymous function's parameters can follow `@`, so
-             there the plain parenthesis is not valid. */
           if (valid_symbols[ANONYMOUS_LPAREN] && ! valid_symbols[LPAREN])
             {
               push (s, 'a');
@@ -347,14 +354,31 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
           push (s, '(');
           if (element && valid_symbols[ELEMENT_LPAREN])
             return emit (lexer, ELEMENT_LPAREN);
+          /* Octave's style writes a call with a space before its
+             parenthesis and an index without one, `max (2, 5)` against
+             `x(2)`.  The token carries the space into the tree and changes
+             nothing about the parse. */
+          if (spaced && ! in_matrix && ! recovering
+              && valid_symbols[SPACED_LPAREN])
+            return emit (lexer, SPACED_LPAREN);
           return emit (lexer, LPAREN);
         case '[':
           push (s, '[');
           return emit (lexer, LBRACKET);
         case '{':
-          push (s, '{');
           if (element && valid_symbols[ELEMENT_LBRACE])
-            return emit (lexer, ELEMENT_LBRACE);
+            {
+              push (s, '{');
+              return emit (lexer, ELEMENT_LBRACE);
+            }
+          /* A brace after an expression indexes it, as in Octave, however
+             it is spaced outside brackets and when unspaced inside them. */
+          if (! recovering && valid_symbols[INDEX_LBRACE])
+            {
+              push (s, 'i');
+              return emit (lexer, INDEX_LBRACE);
+            }
+          push (s, '{');
           return emit (lexer, LBRACE);
         case ')':
           {
@@ -387,7 +411,7 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
         return false;
 
       end_bodies (s);
-      if (! (top (s) == '(' || top (s) == 'a'))
+      if (! (top (s) == '(' || top (s) == 'a' || top (s) == 'i'))
         {
           if (! valid_symbols[NEWLINE])
             return false;

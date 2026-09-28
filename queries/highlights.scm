@@ -45,14 +45,23 @@
 
 ; Uses
 
-(index_expression
-  value: (identifier) @function.call)
-
 (cell_index_expression
   value: (identifier) @variable)
 
 (field_expression
   field: (identifier) @property)
+
+; Octave's style writes a call with a space before its parenthesis and an
+; index without one, `max (2, 5)` against `x(2)`, so only the spaced form is
+; a call.  Inside brackets no call can be spaced and none is coloured.
+(index_expression
+  value: (identifier) @function.call
+  spaced: "(")
+
+(index_expression
+  value: (field_expression
+    field: (identifier) @function.method.call)
+  spaced: "(")
 
 (function_handle
   (identifier) @function)

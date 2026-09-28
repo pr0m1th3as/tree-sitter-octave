@@ -88,6 +88,10 @@ return grammar ({
        ends. */
     $._anonymous_lparen,
     ',', ';',
+    /* An index's parenthesis with a space before it, and the brace of a
+       cell index, inside which a space separates nothing. */
+    $._spaced_lparen,
+    $._index_lbrace,
   ],
 
   /* `[a b]` is a matrix until an `=` proves it a multi-assignment target, and
@@ -404,8 +408,10 @@ return grammar ({
 
     /* `properties (Access = private)` and `properties(Dependent = true)`
        alike: the attribute list is optional and its spacing is free. */
+    /* After `arguments`, which may also name a variable, a spaced
+       parenthesis could index it, so the scanner offers the spaced token. */
     attribute_list: $ => seq (
-      '(',
+      choice ('(', alias ($._spaced_lparen, '(')),
       optional (seq ($.attribute, repeat (seq (',', $.attribute)))),
       ')',
     ),
@@ -667,9 +673,14 @@ return grammar ({
       )),
     )),
 
+    /* Octave's style writes a call with a space before its parenthesis and
+       an index without one.  The `spaced` field records that space for a
+       highlighter; MATLAB has no such convention, so there it is not kept. */
     index_expression: $ => prec.dynamic (1, prec (PREC.call, seq (
       field ('value', matlab ? $._chainable : $._expression),
-      '(', optional ($._argument_list), ')',
+      choice ('(', matlab ? alias ($._spaced_lparen, '(')
+                          : field ('spaced', alias ($._spaced_lparen, '('))),
+      optional ($._argument_list), ')',
     ))),
 
     /* MATLAB does not chain an index onto a call's result, so `f (x)(2)` is
@@ -680,7 +691,8 @@ return grammar ({
     ),
 
     cell_index_expression: $ => prec (PREC.call, seq (
-      field ('value', $._expression), '{', optional ($._argument_list), '}',
+      field ('value', $._expression), alias ($._index_lbrace, '{'),
+      optional ($._argument_list), '}',
     )),
 
     field_expression: $ => prec (PREC.call, seq (
