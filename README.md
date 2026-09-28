@@ -92,7 +92,7 @@ tree-sitter generate --no-bindings   # grammar.js -> src/parser.c
 (cd strict && tree-sitter generate --no-bindings)
 (cd matlab && tree-sitter generate --no-bindings)
 tree-sitter test                     # 63 corpus tests, 8 highlight assertions
-tools/dialect-test.py                # 81 assertions the variants must differ on
+tools/dialect-test.py                # 88 assertions the variants must differ on
 tree-sitter parse FILE               # print the tree for one file
 make                                 # libtree-sitter-octave.so, .a and the .pc
 ```
@@ -246,15 +246,11 @@ ordinary names, and the grammar treats them so.
 None that any of the files measured here reach.  Every Octave file and every
 MATLAB file parses with no `ERROR` node, the dialect cases all hold, and the
 constructs MATLAB has that Octave does not parse as their own nodes rather
-than as an approximation.  Two constructs outside them read otherwise than in
-Octave:
-
-- **A name, a space and `@name` inside brackets.**  Octave reads `{a @sin}` as
-  a call to the superclass method `a@sin`; here it is two elements.  A
-  superclass call is written `obj@Base (x)`, without the space, and is only
-  legal inside a class method.
-- **A backslash ending a line outside a string.**  It is accepted as a line
-  continuation, which Octave 11 no longer is: there it is a syntax error.
+than as an approximation.  One construct outside them reads otherwise than in
+Octave: **a name, a space and `@name` inside brackets.**  Octave reads
+`{a @sin}` as a call to the superclass method `a@sin`; here it is two
+elements.  A superclass call is written `obj@Base (x)`, without the space, and
+is only legal inside a class method.
 
 A body may share its header's line, `if (c) x = 1; endif`, only where the
 condition is parenthesised, and after a keyword-only header such as `else` or

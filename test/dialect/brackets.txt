@@ -11,3 +11,18 @@ strict: reject
 matlab: ok
 ---
 c = {@(y) mean (y) @(y) std (y)};
+
+=== A backslash does not continue a line
+lenient: reject
+strict: reject
+matlab: reject
+---
+x = 1 + \
+  2;
+
+=== A backslash still continues a double-quoted string
+lenient: ok
+strict: ok
+---
+s = "a\
+b";

@@ -276,45 +276,33 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
 
       /* A line continuation is the scanner's, so that it counts as the
          space it stands for: `[v...` with `(w)]` opening the next line is
-         two elements, as in Octave.  `...` runs to the end of the line; a
-         backslash continues only when nothing but blanks follow it.  A dot
-         and a digit after a space inside brackets open a new element, as in
-         `[1 .5]`.  Every other dot is declined; a scan that declines is
-         reset to where it began, so looking ahead here is safe as long as
-         nothing falls through to another block. */
-      if (lexer->lookahead == '.' || lexer->lookahead == '\\')
+         two elements, as in Octave.  `...` runs to the end of the line.  A
+         dot and a digit after a space inside brackets open a new element,
+         as in `[1 .5]`.  Every other dot is declined; a scan that declines
+         is reset to where it began, so looking ahead here is safe as long
+         as nothing falls through to another block. */
+      if (lexer->lookahead == '.')
         {
           lexer->mark_end (lexer);
-          bool dots = (lexer->lookahead == '.');
           lexer->advance (lexer, false);
-          if (dots)
+          if (lexer->lookahead >= '0' && lexer->lookahead <= '9')
             {
-              if (lexer->lookahead >= '0' && lexer->lookahead <= '9')
+              if (in_matrix && spaced && ! recovering
+                  && valid_symbols[ELEMENT_GAP])
                 {
-                  if (in_matrix && spaced && ! recovering
-                      && valid_symbols[ELEMENT_GAP])
-                    {
-                      lexer->result_symbol = ELEMENT_GAP;
-                      return true;
-                    }
-                  return false;
+                  lexer->result_symbol = ELEMENT_GAP;
+                  return true;
                 }
-              if (lexer->lookahead != '.')
-                return false;
-              lexer->advance (lexer, false);
-              if (lexer->lookahead != '.')
-                return false;
-              while (lexer->lookahead != 0 && lexer->lookahead != '\n'
-                     && lexer->lookahead != '\r')
-                lexer->advance (lexer, false);
+              return false;
             }
-          else
-            {
-              while (lexer->lookahead == ' ' || lexer->lookahead == '\t')
-                lexer->advance (lexer, false);
-              if (lexer->lookahead != '\n' && lexer->lookahead != '\r')
-                return false;
-            }
+          if (lexer->lookahead != '.')
+            return false;
+          lexer->advance (lexer, false);
+          if (lexer->lookahead != '.')
+            return false;
+          while (lexer->lookahead != 0 && lexer->lookahead != '\n'
+                 && lexer->lookahead != '\r')
+            lexer->advance (lexer, false);
           if (lexer->lookahead == '\r')
             lexer->advance (lexer, false);
           if (lexer->lookahead == '\n')
