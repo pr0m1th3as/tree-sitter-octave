@@ -741,9 +741,18 @@ return grammar ({
 
     cell: $ => seq ('{', optional ($._rows), '}'),
 
-    _rows: $ => seq (
-      $.row, repeat (seq (choice (';', $._newline), optional ($.row))),
+    /* Rows may open with line breaks and empty rows, `[` alone on a line
+       above them, and a line break is a statement's end everywhere else
+       outside parentheses. */
+    _rows: $ => choice (
+      repeat1 ($._row_separator),
+      seq (
+        repeat ($._row_separator), $.row,
+        repeat (seq ($._row_separator, optional ($.row))),
+      ),
     ),
+
+    _row_separator: $ => choice (';', $._newline),
 
     row: $ => seq (
       $._matrix_element,

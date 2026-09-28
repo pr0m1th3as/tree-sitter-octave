@@ -91,8 +91,8 @@ has since moved to Octave's own spellings.
 tree-sitter generate --no-bindings   # grammar.js -> src/parser.c
 (cd strict && tree-sitter generate --no-bindings)
 (cd matlab && tree-sitter generate --no-bindings)
-tree-sitter test                     # 63 corpus tests, 8 highlight assertions
-tools/dialect-test.py                # 88 assertions the variants must differ on
+tree-sitter test                     # 65 corpus tests, 8 highlight assertions
+tools/dialect-test.py                # 98 assertions the variants must differ on
 tree-sitter parse FILE               # print the tree for one file
 make                                 # libtree-sitter-octave.so, .a and the .pc
 ```
@@ -175,7 +175,9 @@ What the grammar cannot decide on its own, all in `common/scanner.h`:
 - **Whether a newline ends a statement.**  At the top level it does, inside
   parentheses and the braces of a cell index it is whitespace, which is what
   lets an expression break after an operator with no `...`, and inside
-  brackets it separates rows.  The parse
+  brackets it separates rows.  Outside parentheses it is never whitespace, so
+  a line ending in an operator is an error, as in Octave, and a matrix may
+  open with line breaks because its rows accept them.  The parse
   state cannot answer this, since tree-sitter reports an external token as
   valid wherever it could recover with one.
 - **Whether a quote is a transpose or opens a string.**  Octave decides by the
@@ -249,11 +251,8 @@ ordinary names, and the grammar treats them so.
 None that any of the files measured here reach.  Every Octave file and every
 MATLAB file parses with no `ERROR` node, the dialect cases all hold, and the
 constructs MATLAB has that Octave does not parse as their own nodes rather
-than as an approximation.  One construct outside them reads otherwise than in
-Octave: **a line ending in a binary operator.**  `x = 1 +` with `2;` on the
-next line is accepted as one statement, where Octave requires `...` and
-rejects it.  Outside parentheses the scanner declines a line break where no
-statement can end, and the grammar then takes it as a space.
+than as an approximation.  Nor is any construct outside them known to read
+otherwise than in Octave.
 
 A body may share its header's line, `if (c) x = 1; endif`, only where the
 condition is parenthesised, and after a keyword-only header such as `else` or

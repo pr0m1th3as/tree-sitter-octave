@@ -26,3 +26,33 @@ strict: ok
 ---
 s = "a\
 b";
+
+=== A line ending in an operator does not continue
+lenient: reject
+strict: reject
+matlab: reject
+---
+x = 1 +
+  2;
+
+=== Nor inside brackets
+lenient: reject
+strict: reject
+---
+x = [1 +
+  2];
+
+=== Inside parentheses it does
+lenient: ok
+strict: ok
+---
+x = (1 +
+  2);
+
+=== Rows may open with a line break and an empty row
+lenient: ok
+strict: ok
+matlab: ok
+---
+x = [
+;1 2];

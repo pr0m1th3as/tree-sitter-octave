@@ -496,8 +496,6 @@ bool TS_FN (_external_scanner_scan) (void *payload, TSLexer *lexer,
       end_bodies (s);
       if (! (top (s) == '(' || top (s) == 'a' || top (s) == 'i'))
         {
-          if (! valid_symbols[NEWLINE])
-            return false;
           lexer->advance (lexer, false);
           lexer->result_symbol = NEWLINE;
           return true;

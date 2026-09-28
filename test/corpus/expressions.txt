@@ -225,6 +225,23 @@ c = {@(t) abs (t), x (1)
         (parenthesized_expression
           (number))))))
 
+===================================================
+Rows may open with line breaks and an empty row
+===================================================
+
+x = [
+;1 2
+];
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (number)
+        (number)))))
+
 ====================================
 Implicit continuation in parentheses
 ====================================
