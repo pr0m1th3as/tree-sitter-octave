@@ -20,8 +20,15 @@
   (property
     name: (identifier) @name) @definition.property)
 
+; Only a spaced parenthesis marks a call: `max (2, 5)` against `x(2)`.
 (index_expression
-  value: (identifier) @name) @reference.call
+  value: (identifier) @name
+  spaced: "(") @reference.call
+
+(index_expression
+  value: (field_expression
+    field: (identifier) @name)
+  spaced: "(") @reference.call
 
 (function_handle
   (identifier) @name) @reference.call
