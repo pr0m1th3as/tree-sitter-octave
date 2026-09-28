@@ -17,6 +17,88 @@ A = [1 2
         (number)
         (number)))))
 
+===================================================
+A space before a paren in brackets starts an element
+===================================================
+
+x = [v (w)];
+y = [f(a (1))];
+z = v (w);
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (identifier)
+        (parenthesized_expression
+          (identifier)))))
+  (assignment
+    left: (identifier)
+    right: (matrix
+      (row
+        (index_expression
+          value: (identifier)
+          (index_expression
+            value: (identifier)
+            (number))))))
+  (assignment
+    left: (identifier)
+    right: (index_expression
+      value: (identifier)
+      (identifier))))
+
+===================================================
+A space before a brace in brackets starts an element
+===================================================
+
+x = {c {2}};
+y = c {2};
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (cell
+      (row
+        (identifier)
+        (cell
+          (row
+            (number))))))
+  (assignment
+    left: (identifier)
+    right: (cell_index_expression
+      value: (identifier)
+      (number))))
+
+==============================================================
+A space in an anonymous function's body in brackets is no split
+==============================================================
+
+c = {@(t) abs (t), x (1)
+     y (2)};
+---
+
+(source_file
+  (assignment
+    left: (identifier)
+    right: (cell
+      (row
+        (anonymous_function
+          parameters: (parameter_list
+            (identifier))
+          body: (index_expression
+            value: (identifier)
+            (identifier)))
+        (identifier)
+        (parenthesized_expression
+          (number)))
+      (row
+        (identifier)
+        (parenthesized_expression
+          (number))))))
+
 ====================================
 Implicit continuation in parentheses
 ====================================

@@ -79,6 +79,15 @@ return grammar ({
     '(', ')', '[', ']', '{', '}',
     /* Lexed by the scanner, so a word Octave reserves never becomes a name. */
     $.identifier,
+    /* A delimiter with a space before it inside brackets, which opens a new
+       element and so can never index the one before it. */
+    $._element_lparen,
+    $._element_lbrace,
+    /* An anonymous function's body inside brackets is not an element list,
+       so the scanner marks where its parameters open and where its body
+       ends. */
+    $._anonymous_lparen,
+    ',', ';',
   ],
 
   /* `[a b]` is a matrix until an `=` proves it a multi-assignment target, and
@@ -544,9 +553,15 @@ return grammar ({
 
     _function_output: $ => choice ($.identifier, $.multi_assignment_target),
 
-    parameter_list: $ => seq (
-      '(', optional (seq ($._parameter, repeat (seq (',', $._parameter)))), ')',
+    parameter_list: $ => seq ('(', optional ($._parameters), ')'),
+
+    /* Its own opening token, so the scanner knows an anonymous function's
+       body follows the closing one. */
+    _anonymous_parameter_list: $ => seq (
+      alias ($._anonymous_lparen, '('), optional ($._parameters), ')',
     ),
+
+    _parameters: $ => seq ($._parameter, repeat (seq (',', $._parameter))),
 
     /* `varargin` and `varargout` are conventions, not keywords: they are
        ordinary names, assigned to and indexed like any other. */
@@ -590,7 +605,7 @@ return grammar ({
     /* An assignment is an expression only in Octave, and only where
        parentheses make it one. */
     parenthesized_expression: $ => seq (
-      '(', matlab ? $._expression : choice ($._expression, $.assignment), ')',
+      choice ('(', alias ($._element_lparen, '(')), matlab ? $._expression : choice ($._expression, $.assignment), ')',
     ),
 
     colon: _ => ':',
@@ -696,7 +711,8 @@ return grammar ({
     function_handle: $ => seq ('@', $._function_name),
 
     anonymous_function: $ => seq (
-      '@', field ('parameters', $.parameter_list),
+      '@', field ('parameters', alias ($._anonymous_parameter_list,
+                                       $.parameter_list)),
       field ('body', $._expression),
     ),
 
@@ -704,7 +720,8 @@ return grammar ({
 
     matrix: $ => seq ('[', optional ($._rows), ']'),
 
-    cell: $ => seq ('{', optional ($._rows), '}'),
+    cell: $ => seq (choice ('{', alias ($._element_lbrace, '{')),
+                    optional ($._rows), '}'),
 
     _rows: $ => seq (
       $.row, repeat (seq (choice (';', $._newline), optional ($.row))),
