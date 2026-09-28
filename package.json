@@ -1,6 +1,6 @@
 {
   "name": "tree-sitter-octave",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Octave grammar for tree-sitter, permissive of MATLAB syntax",
   "repository": "github:pr0m1th3as/tree-sitter-octave",
   "license": "GPL-3.0-or-later",

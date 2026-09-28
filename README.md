@@ -74,15 +74,16 @@ other BIST marker, so rejecting it would fail every package file that has
 tests.
 
 **What each checker is measured against.**  Strict MATLAB rejects every one
-of the 882 Octave package files here, as it must, and accepts all 21 of the
-probe files written to run on the MATLAB VM.  It rejects 5 of the 47 probes
-under `dev-octave/`, correctly: those probe Octave itself and are written in
-Octave.
+of the 911 Octave package files here, as it must, and accepted all 21 of the
+probe files written to run on the MATLAB VM when they were measured.  It
+rejects 5 of the 45 probes under `dev-octave/`, correctly: those probe Octave
+itself and are written in Octave.
 
-Run over the packages here, strict flags **20 files**: 17 in `statistics` and
-3 in `csg-toolkit`, between them 34 `%` comments and three bare `end`
-terminators, one of them `if (1 < MaxIter), end`.  `datatypes`, `drafting`
-and `devtools` are clean.
+Run over the packages here, strict Octave flags **3 files**, all in
+`csg-toolkit`: one with `%` comments and two closed with a bare `end`.
+`statistics`, `datatypes`, `drafting` and `devtools` are clean.  When first
+measured, strict flagged 17 files in `statistics` as well, and `statistics`
+has since moved to Octave's own spellings.
 
 ## Building
 
@@ -90,16 +91,18 @@ and `devtools` are clean.
 tree-sitter generate --no-bindings   # grammar.js -> src/parser.c
 (cd strict && tree-sitter generate --no-bindings)
 (cd matlab && tree-sitter generate --no-bindings)
-tree-sitter test                     # 56 corpus tests, on the lenient parser
+tree-sitter test                     # 59 corpus tests, 8 highlight assertions
 tools/dialect-test.py                # 77 assertions the variants must differ on
 tree-sitter parse FILE               # print the tree for one file
 make                                 # libtree-sitter-octave.so, .a and the .pc
 ```
 
-`tree-sitter test` cannot express "parses here, fails there", which is the
-whole content of a dialect rule, so `tools/dialect-test.py` carries those
-cases from `test/dialect/`.  Each case names the verdict it expects from each
-variant.  Without it the two variants drift and nobody notices.
+`tree-sitter test` runs the corpus in `test/corpus/` and the highlight
+assertions in `test/highlight/`, both on the lenient parser.  It cannot
+express "parses here, fails there", which is the whole content of a dialect
+rule, so `tools/dialect-test.py` carries those cases from `test/dialect/`.
+Each case names the verdict it expects from each variant.  Without it the two
+variants drift and nobody notices.
 
 The scanner is shared: `common/scanner.h` holds it, and each variant's
 `src/scanner.c` defines `TS_LANG` before including it, since tree-sitter
@@ -122,6 +125,18 @@ definitions and references, and `queries/locals.scm` for scopes.  The
 transpose operator is the scanner's token and is hidden, so it is the one
 operator a highlight query cannot reach.
 
+**A call is told from an index by the space before its parenthesis.**  Octave
+writes the two alike, `max (2, 5)` and `x(2)`, and only the interpreter knows
+which a name is.  Octave's own coding style spaces a call and not an index, so
+the lenient and strict Octave parsers keep that space as the `spaced` field of
+`index_expression`, and both queries use it: only `name (...)` and
+`obj.method (...)` are coloured as calls and tagged as references.  Code
+written without the space, MATLAB style, shows no call coloured at all, which
+is the safe way to be wrong.  Inside brackets no call can be spaced, since a
+space there starts a new element, so a call written in a matrix is never
+coloured either.  The strict MATLAB parser keeps no such field, MATLAB having
+no such convention.
+
 ## Where it stands
 
 Measured by parsing whole trees and counting a file as failing if it holds any
@@ -130,16 +145,16 @@ definition:
 
 | Corpus | Files | Clean |
 |---|---|---|
-| `statistics` | 751 | 100 per cent |
+| `statistics` | 754 | 100 per cent |
 | core `scripts` | 1044 | 100 per cent |
 | `datatypes`, `csg-toolkit`, `drafting` | 157 | 100 per cent |
-| **total** | **1952** | **100 per cent** |
+| **total** | **1955** | **100 per cent** |
 
 Measured on the MATLAB side too, against the 68 MATLAB probe files kept here
-for checking behaviour against the real thing: **100 per cent**.  That corpus
-is what caught `?handle` as a metaclass literal outside an attribute list, and
-`which f -all`, where Octave tells a flag from a subtraction by the space
-after the sign rather than the one before it.
+at the time for checking behaviour against the real thing: **100 per cent**.
+That corpus is what caught `?handle` as a metaclass literal outside an
+attribute list, and `which f -all`, where Octave tells a flag from a
+subtraction by the space after the sign rather than the one before it.
 
 For comparison, the grammar an editor reaches for today when it opens a `.m`
 file, `acristoffers/tree-sitter-matlab` 1.3.1, recovers a file's own top-level
@@ -154,11 +169,12 @@ what would have caught the transpose read as a string.
 
 ## What the scanner is for
 
-Four things the grammar cannot decide on its own, all in `src/scanner.c`:
+What the grammar cannot decide on its own, all in `common/scanner.h`:
 
 - **Whether a newline ends a statement.**  At the top level it does, inside
-  parentheses it is whitespace, which is what lets an expression break after
-  an operator with no `...`, and inside brackets it separates rows.  The parse
+  parentheses and the braces of a cell index it is whitespace, which is what
+  lets an expression break after an operator with no `...`, and inside
+  brackets it separates rows.  The parse
   state cannot answer this, since tree-sitter reports an external token as
   valid wherever it could recover with one.
 - **Whether a quote is a transpose or opens a string.**  Octave decides by the
@@ -183,9 +199,18 @@ Four things the grammar cannot decide on its own, all in `src/scanner.c`:
 - **Where a command begins.**  `hold on` is `hold ('on')` when a space
   separates the name from a word that cannot continue an expression, and only
   at the top level, since inside brackets a space separates elements.
-- **The bracket stack** the other three need, which is why the delimiters are
-  the scanner's tokens.  They stay ordinary literals in the tree, so a query
-  can still reach them.
+- **Whether a space inside brackets starts an element.**  `[v (w)]` is `v`
+  and `(w)`, and `{c {2}}` is `c` and a cell, as Octave reads them, so a `(`
+  or `{` with a space before it directly inside brackets is a token an index
+  cannot take.  Not in an anonymous function's body, which runs to the next
+  `,`, `;`, line break or closing delimiter and where a space separates
+  nothing: `{@(t) abs (t), 2}` holds two elements.
+- **Whether a call's parenthesis has a space before it**, outside brackets,
+  which the `spaced` field records for the queries.
+- **The bracket stack** the rest need, which is why the delimiters, `,` and
+  `;` are the scanner's tokens.  It also marks an anonymous function's
+  parameters and body, and the braces of a cell index.  The delimiters stay
+  ordinary literals in the tree, so a query can still reach them.
 
 ## Reserved words
 
@@ -208,10 +233,19 @@ ordinary names, and the grammar treats them so.
 
 ## Known gaps
 
-None that any of the 2020 files measured here reach.  Every Octave file and
-every MATLAB file parses with no `ERROR` node, the dialect cases all hold, and
-the constructs MATLAB has that Octave does not parse as their own nodes rather
-than as an approximation.
+None that any of the files measured here reach.  Every Octave file and every
+MATLAB file parses with no `ERROR` node, the dialect cases all hold, and the
+constructs MATLAB has that Octave does not parse as their own nodes rather
+than as an approximation.  Two constructs outside them are known to read
+wrongly:
+
+- **A line continuation directly before a parenthesis inside brackets.**
+  `[v...` followed by `(w)]` opening the next line reads as an index, where
+  Octave reads two elements.  The continuation is the grammar's token, so the
+  scanner sees no space.  With the next line indented, `[v ...` and ` (w)]`,
+  it reads correctly.
+- **A space in an anonymous function's body followed by a new element.**
+  `{@(t) t (1) 2}` is accepted as a function and `2`, where Octave rejects it.
 
 A body may share its header's line, `if (c) x = 1; endif`, only where the
 condition is parenthesised, and after a keyword-only header such as `else` or
